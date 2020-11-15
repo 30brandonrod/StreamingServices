@@ -1,0 +1,212 @@
+﻿@{
+    ViewData["Title"] = "Streaming Service Comparison";
+    var companies = (List<string>)ViewData["Companies"];
+}
+<div class="row">
+    <div class="justify-content-center">
+        <label class="label-space">Comparison</label>
+        <select id="comp" name="comparison">
+            <option></option>
+            <option value="streaming_services">Streaming Service</option>
+            <option value="movies">Movies</option>
+            <option value="shows">Shows</option>
+        </select>
+    </div>
+    <div class="d-flex justify-content-around">
+        <div>
+            <div class="margin-bottom">
+                <label class="label-space">Company 1</label>
+                <select class="companies" id="c1" onchange="streams('#c1', '#s1')" name="company1">
+                    <option></option>
+                    @foreach (var company in companies)
+                    {
+                        <option value="@company">@company</option>
+                    }
+                </select>
+            </div>
+            <div class="margin-bottom">
+                <label class="label-space">Service 1</label>
+                <select id="s1" class="services" name="service1">
+                    <option></option>
+                </select>
+            </div>
+        </div>
+        <div>
+            <div class="margin-bottom">
+                <label class="label-space">Company 2</label>
+                <select class="companies" id="c2" onchange="streams('#c2', '#s2')" name="company2">
+                    <option></option>
+                    @foreach (var company in companies)
+                    {
+                        <option value="@company">@company</option>
+                    }
+                </select>
+            </div>
+            <div class="margin-bottom">
+                <label class="label-space">Service 2</label>
+                <select class="services" id="s2" name="service2">
+                    <option></option>
+                </select>
+            </div>
+        </div>
+    </div>
+    <div id="result" class="d-flex justify-content-around"></div>
+    <div id="footnote"></div>
+</div>
+@section Scripts {
+    <script>
+    var streams;
+    $(document).ready(function () {
+        var services1;
+        var services2;
+        function reloadDropdown(data, serviceDD) {
+            $(serviceDD).empty();
+            $(serviceDD).append('<option></option>');
+            $.each(data, function (i, item) {
+                $(serviceDD).append(`<option value="${item.service_name}">${item.service_name}</option>`);
+            });
+        }
+        function createMovieTables(data) {
+            for (let j = 0; j < data.length; j++) {
+                for (let i = 0; i < data[j].length; i++){
+                    $('.section').eq(j).find('tbody').append(`<tr><td>${data[j][i].title}</td><td>${data[j][i].genre}</td><td>${data[j][i].runtime}</td><td>${data[j][i].original ? 'Yes' : 'No'}</td></tr>`)
+                }
+            }
+        }
+        function createShowTables(data) {
+            for (let j = 0; j < data.length; j++) {
+                for (let i = 0; i < data[j].length; i++){
+                    $('.section').eq(j).find('tbody').append(
+                        `<tr><td>${data[j][i].original ? '*' : ''} ${data[j][i].title}</td><td>${data[j][i].genre}</td><td>${data[j][i].seasons}</td><td>${data[j][i].episodes}</td><td>${data[j][i].channel}</td></tr>`)
+                }
+            }
+        }
+        function getShowLists(ss1, ss2) {
+            $.ajax({
+                url: '@Url.Action("Index", "home/GetShowLists")',
+                data: { company1: ss1.company, service1: ss1.service, company2: ss2.company, service2: ss2.service },
+                dataType: "json",
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    createShowTables(data);
+                }
+            });
+        }
+        function getMovieLists(ss1, ss2) {
+            $.ajax({
+                url: '@Url.Action("Index", "home/GetMovieLists")',
+                data: { company1: ss1.company, service1: ss1.service, company2: ss2.company, service2: ss2.service },
+                dataType: "json",
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    createMovieTables(data);
+                }
+            });
+        }
+        streams = function(company, serviceDD) {
+            $.ajax({
+                url: '@Url.Action("Index", "home/GetStreams1")',
+                data: { company: $(company).val() },
+                dataType: "json",
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    if (serviceDD == '#s1') {
+                        services1 = data;
+                    } else {
+                        services2 = data;
+                    }
+                    reloadDropdown(data, serviceDD);
+                }
+            });
+        }
+        function show_head(service1, service2) {
+            $('#result').empty();
+            $('#footnote').empty();
+            $('#result').append(
+                `<div class="section"><p>Service Name: ${service1.service_name}</p><p>CompanyName: ${$('#c1').val()}</p></div>
+                 <div class="section"><p>Service Name: ${service2.service_name}</p><p>CompanyName: ${$('#c2').val()}</p></div>`);
+        }
+
+        function show_comparison(service1, service2) {
+            show_head(service1, service2);
+            $('.section').append(`<table class="table"><thead><tr><th>Show Title</th><th>Genre</th><th>Seasons</th><th>Episodes</th><th>Channel</th></tr></thead><tbody></tbody></table>`);
+            getShowLists({ company: $('#c1').val(), service: service1.service_name }, { company: $('#c2').val(), service: service2.service_name });
+            $('#footnote').append('<p>* Streaming Service Originals</p>');
+        }
+
+        function ss_comparison(service1, service2) {
+            show_head(service1, service2);
+            $('.section').eq(0).append(`<p>Price: $${service1.price}/mo</p><p>Creation Date: ${service1.creation_date}</p><p>Ads: ${service1.ads ? 'Yes' : 'No'}</p>`);
+            $('.section').eq(1).append(`<p>Price: $${service2.price}/mo</p><p>Creation Date: ${service2.creation_date}</p><p>Ads: ${service2.ads ? 'Yes' : 'No'}</p>`);
+        }
+        function mov_comparison(service1, service2) {
+            show_head(service1, service2);
+            $('.section').append(`<table class="table"><thead><tr><th>Movie Title</th><th>Genre</th><th>Runtime</th><th>Original</th></tr></thead><tbody></tbody></table>`);
+            getMovieLists({ company: $('#c1').val(), service: service1.service_name }, { company: $('#c2').val(), service: service2.service_name });
+        }
+        $('.services, #comp').change(function () {
+            if ($('#s1').val() != '' && $('#s2').val() != '' && $('#comp').val() != '') {
+                let service1 = services1.filter(obj => obj.service_name == $('#s1').val())[0];
+                let service2 = services2.filter(obj => obj.service_name == $('#s2').val())[0];
+                switch ($('#comp').val()) {
+                    case 'streaming_services':
+                        ss_comparison(service1, service2);
+                        break;
+                    case 'movies':
+                        mov_comparison(service1, service2);
+                        break;
+                    case 'shows':
+                        show_comparison(service1, service2);
+                        break;
+                }
+            } else {
+                $('#result').empty();
+                $('#footnote').empty();
+            }
+        });
+        $('.companies').change(function () {
+            if ($(this).val() == '') {
+                $('#result').empty();
+                $('#footnote').empty();
+            }
+        });
+    });
+    </script>
+}
+
+<style>
+    select {
+        width: 20rem;
+    }
+
+    label {
+        width: 8rem;
+    }
+
+    #result {
+        height: 50vh;
+    }
+
+    .d-flex {
+        display: flex;
+    }
+
+    .justify-content-around {
+        justify-content: space-around;
+    }
+
+    .justify-content-center {
+        display: flex;
+        justify-content: center;
+        margin-top: 5rem;
+        margin-bottom: 3rem;
+    }
+
+    .label-space {
+        margin-right: 1rem;
+    }
+
+    .margin-bottom {
+        margin-bottom: 3rem;
+    }
+</style>
